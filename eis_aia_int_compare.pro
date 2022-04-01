@@ -1,7 +1,7 @@
 
 PRO eis_aia_int_compare, emap, amap, bdim=bdim, position=position, output=output, quiet=quiet, $
                          eis_dark=eis_dark, aia_time=aia_time, aia_sub_map=aia_sub_map, $
-                         aia_offset=aia_offset, eis_scale=eis_scale
+                         aia_offset=aia_offset, eis_scale=eis_scale, aia_wvl=aia_wvl
 
 
 ;+
@@ -39,6 +39,8 @@ PRO eis_aia_int_compare, emap, amap, bdim=bdim, position=position, output=output
 ;     Eis_Scale: A float specifying a scale factor to multiply the EIS
 ;                intensity by. Young & Ugarte-Urra (2022) suggested a
 ;                factor of 0.86 for 40" slot data.
+;     Aia_Wvl:  Integer specifying the AIA wavelength to display. The
+;               default is 193.
 ;	
 ; OUTPUTS:
 ;     In the graphics window, the EIS map is plotted on the left-hand
@@ -76,7 +78,9 @@ PRO eis_aia_int_compare, emap, amap, bdim=bdim, position=position, output=output
 ;        Now downloads EIT data if AIA not available.
 ;     Ver.4, 02-Mar-2022, Peter Young
 ;        Fixed bug when /quiet is set; added eis_scale= optional
-;        input. 
+;        input.
+;     Ver.5, 09-Mar-2022, Peter Young
+;        Added aia_wvl= optional input.
 ;-
 
 
@@ -84,6 +88,8 @@ IF n_elements(bdim) EQ 0 THEN bdim=30
 
 IF NOT keyword_set(quiet) THEN window,0,xsize=1200,ysize=600
 IF n_elements(aia_offset) EQ 0 THEN aia_offset=[0,0]
+
+IF n_elements(aia_wvl) EQ 0 THEN aia_wvl=193
 
 IF n_elements(eis_scale) EQ 0 THEN eis_scale=1.0
 
@@ -94,11 +100,16 @@ dmin=min(emap.data[k])
 IF NOT keyword_set(quiet) THEN plot_map,emap,/log,dmin=max([10,dmin])
 
 IF n_elements(position) EQ 0 THEN BEGIN 
-   cursor,x,y,/data,/down
+  cursor,x,y,/data,/down
 ENDIF ELSE BEGIN
-   x=position[0]
-   y=position[1]
-ENDELSE 
+  x=position[0]
+  y=position[1]
+ENDELSE
+
+IF emap.slit_ind EQ 0 OR emap.slit_ind EQ 2 THEN BEGIN
+  ij=map_coord2pix(emap,x,y)
+  print,'% EIS_AIA_INT_COMPARE: the selected pixel corresponds to exposure '+trim(round(ij[0]))+'.'
+ENDIF 
 
 dd=bdim/2
 IF NOT keyword_set(quiet) THEN oplot,x+[-dd,dd,dd,-dd,-dd],y+[-dd,-dd,dd,dd,-dd]
@@ -115,7 +126,7 @@ aia_flag=0b
 eit_flag=0b
 IF n_tags(amap) EQ 0 THEN BEGIN
    IF n_elements(aia_time) NE 0 THEN search_time=aia_time ELSE search_time=emap.time
-   dmap=eis_mapper_aia_map(search_time,193,/quiet,/no_delete,local_file=local_file)
+   dmap=eis_mapper_aia_map(search_time,aia_wvl,/quiet,/no_delete,local_file=local_file)
   ;
    IF n_tags(dmap) EQ 0 THEN BEGIN
       amap=eis_mapper_eit_map(search_time,195,/quiet)
