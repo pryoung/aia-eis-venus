@@ -1,7 +1,8 @@
 
 FUNCTION aia_annulus_int, smap, position=position, show=show, $
-                              outer_radius=outer_radius, $
-                              inner_radius=inner_radius, output=output
+                          outer_radius=outer_radius, $
+                          inner_radius=inner_radius, output=output, $
+                          ann_map=ann_map
 
 
 ;+
@@ -51,14 +52,20 @@ FUNCTION aia_annulus_int, smap, position=position, show=show, $
 ;               .int_loc_med   Median intensity over the 5"x5" block.
 ;               .time_stamp    Time at which routine was run.
 ;
+;      Ann_Map:  An IDL map containing only the annulus image (this is
+;                displayed when /show is set).
+;
 ; MODIFICATION HISTORY:
 ;     Ver.1, 29-Dec-2020, Peter Young
+;     Ver.2, 07-Apr-2022, Peter Young
+;       Added ANN_MAP= optional output.
 ;-
 
 
 
 IF n_params() LT 1 THEN BEGIN
-   print,'Use:  IDL> output=aia_annulus_int( map [, /show, inner_radius=, outer_radius=, position= ] )'
+   print,'Use:  IDL> output=aia_annulus_int( map [, /show, inner_radius=, outer_radius=, position=,'
+   print,'                                     output=, ann_map= ] )'
    return,-1
 ENDIF 
 
@@ -99,11 +106,11 @@ yci=outer_radius*sin(ind)+ypos
 oplot,xci,yci
 
 
+k=where(r_arr LE  inner_radius/0.6 OR r_arr GT outer_radius/0.6)
+ann_map=smap
+ann_map.data[k]=0.
 IF keyword_set(show) THEN BEGIN 
-   k=where(r_arr LE  inner_radius/0.6 OR r_arr GT outer_radius/0.6)
-   smap2=smap
-   smap2.data[k]=0.
-   plot_map,smap2,title='Annulus map'
+   plot_map,ann_map,title='Annulus map'
 ENDIF 
 
 IF smap.dur NE 1.0 THEN BEGIN
