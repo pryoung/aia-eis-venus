@@ -19,13 +19,14 @@ PRO eis_aia_int_compare, emap, amap, bdim=bdim, position=position, output=output
 ;     EIS_AIA_INT_COMPARE, Emap
 ;
 ; INPUTS:
-;     Emap:   The EIS map formed from the Fe XII 195 line.
+;     Emap:   An EIS intensity map for a specific emission line.
 ;
 ; OPTIONAL INPUTS:
 ;     Amap:   The AIA 193 full-disk map. If not specified, then the
 ;             nearest AIA synoptic file is downloaded and read.
 ;     Bdim:   The dimension of the box used for the averaging. The
-;             default is 30 arcsec.
+;             default is 30 arcsec. A 2-element array can be used
+;             to specify a rectangle. 
 ;     Position: A 2-element array specifying the spatial location to
 ;               be used for determining the average intensity. If set,
 ;               then the user is not asked to click on a position in
@@ -50,7 +51,7 @@ PRO eis_aia_int_compare, emap, amap, bdim=bdim, position=position, output=output
 ;
 ;     In the IDL window, the routine prints:
 ;       - average intensity of selected EIS region.
-;       - average intensity in AIA 193 image for selected EIS region.
+;       - average intensity in AIA image for selected EIS region.
 ;       - average full disk 193 intensity (from
 ;         aia_average_full_disk).
 ;       - the EIS full disk intensity (obtained by scaling relative to
@@ -81,10 +82,30 @@ PRO eis_aia_int_compare, emap, amap, bdim=bdim, position=position, output=output
 ;        input.
 ;     Ver.5, 09-Mar-2022, Peter Young
 ;        Added aia_wvl= optional input.
+;     Ver.6, 29-Jun-2022, Peter Young
+;        BDIM can now be a two-element array; added parameter check. 
 ;-
 
+emap, amap, bdim=bdim, position=position, output=output, quiet=quiet, $
+                         eis_dark=eis_dark, aia_time=aia_time, aia_sub_map=aia_sub_map, $
+                         aia_offset=aia_offset, eis_scale=eis_scale, aia_wvl=aia_wvl
+
+
+IF n_params() LT 1 THEN BEGIN
+  print,'Use:  IDL> eis_aia_int_compare, eis_map [, aia_map, bdim=, position=, output=, /quiet, '
+  print,'                  eis_dark=, aia_time=, aia_sub_map=, aia_offset=, eis_scale=, aia_wvl= ]'
+  return
+ENDIF 
 
 IF n_elements(bdim) EQ 0 THEN bdim=30
+
+IF n_elements(bdim) EQ 2 THEN BEGIN
+  bdimx=bdim[0]
+  bdimy=bdim[1]
+ENDIF ELSE BEGIN
+  bdimx=bdim
+  bdimy=bdim
+ENDELSE 
 
 IF NOT keyword_set(quiet) THEN window,0,xsize=1200,ysize=600
 IF n_elements(aia_offset) EQ 0 THEN aia_offset=[0,0]
@@ -111,10 +132,11 @@ IF emap.slit_ind EQ 0 OR emap.slit_ind EQ 2 THEN BEGIN
   print,'% EIS_AIA_INT_COMPARE: the selected pixel corresponds to exposure '+trim(round(ij[0]))+'.'
 ENDIF 
 
-dd=bdim/2
-IF NOT keyword_set(quiet) THEN oplot,x+[-dd,dd,dd,-dd,-dd],y+[-dd,-dd,dd,dd,-dd]
+ddx=bdimx/2
+ddy=bdimy/2
+IF NOT keyword_set(quiet) THEN oplot,x+[-ddx,ddx,ddx,-ddx,-ddx],y+[-ddy,-ddy,ddy,ddy,-ddy]
 
-sub_map,emap,semap,xrange=[x-dd,x+dd],yrange=[y-dd,y+dd],/noplot
+sub_map,emap,semap,xrange=[x-ddx,x+ddx],yrange=[y-ddy,y+ddy],/noplot
 
 ;----
 ;
@@ -171,12 +193,11 @@ sub_map,amap,samap,xrange=xrange,yrange=yrange
 
 
 IF NOT keyword_set(quiet) THEN plot_map,samap,/log
-IF NOT keyword_set(quiet) THEN oplot,x+dx+[-dd,dd,dd,-dd,-dd]+aia_offset[0],y+dy+[-dd,-dd,dd,dd,-dd]+aia_offset[1]
+IF NOT keyword_set(quiet) THEN oplot,x+dx+[-ddx,ddx,ddx,-ddx,-ddx]+aia_offset[0],y+dy+[-ddy,-ddy,ddy,ddy,-ddy]+aia_offset[1]
 
 sub_map,samap,samap2,/noplot, $
-        xrange=x+dx+[-dd,dd]+aia_offset[0], $
-        yrange=y+dy+[-dd,dd]+aia_offset[1]
-;sub_map,samap,samap2,xrange=[x-dd,x+dd]+aia_offset[0],yrange=[y-dd,y+dd]+aia_offset[1],/noplot
+        xrange=x+dx+[-ddx,ddx]+aia_offset[0], $
+        yrange=y+dy+[-ddy,ddy]+aia_offset[1]
 
 ;
 ; Average the AIA/EIT image over the full-disk (out to 1.05 solar
